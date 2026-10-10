@@ -1,3 +1,43 @@
 import { createClient } from '@/lib/supabase/server'
-import { getAdminUser } from '@/lib/admin'
-export default async function Orders(){const adminUser=await getAdminUser();if(!adminUser)return <main className="atelier"><div className="panel"><h2>Admin access required</h2><p className="sub">Orders are available only to approved administrators.</p></div></main>;const s=await createClient(),{data}=await s.from('orders').select('id,status,design,created_at').order('created_at',{ascending:false});return <main className="atelier"><div className="panel"><span className="tag">Your atelier</span><h2>Saved orders</h2>{!data?.length?<p className="sub">Your first design is waiting to be made.</p>:data.map(o=><div className="notice" key={o.id}><strong>{o.status}</strong><br/>{Object.entries(o.design as Record<string,string>).map(([k,v])=><span key={k}>{k}: {v} · </span>)}</div>)}</div></main>}
+import AdminOrdersView from '@/components/AdminOrdersView'
+
+export default async function Orders() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return (
+      <main className="atelier">
+        <div className="panel">
+          <h2>Sign in to view orders</h2>
+          <p className="sub">Please log in to your account to review your bespoke creations.</p>
+        </div>
+      </main>
+    )
+  }
+
+  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+  const { data: orders } = await supabase
+    .from('orders')
+    .select('id,user_id,status,design,created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+
+  const customerByIdRecord: Record<string, any> = {
+    [user.id]: profile || { full_name: user.user_metadata?.full_name || 'Valued Customer', email: user.email }
+  }
+
+  return (
+    <main className="atelier">
+      <div className="panel">
+        <span className="tag">Your atelier journey</span>
+        <h2>Your bespoke orders & invoices</h2>
+        {!orders?.length ? (
+          <p className="sub">Your first bespoke design is waiting to be crafted.</p>
+        ) : (
+          <AdminOrdersView orders={orders} customerById={customerByIdRecord} />
+        )}
+      </div>
+    </main>
+  )
+}
