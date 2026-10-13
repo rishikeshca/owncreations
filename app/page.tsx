@@ -1,2 +1,43 @@
-import Configurator from '@/components/Configurator'
-export default function Home(){return <><header className="hero"><span className="tag">Custom Atelier · Est. 2020</span><h1>Crafted <em>exclusively</em><br/>for you</h1><p>Design your dream dress from scratch — choose a collection, customise fabric, fit, and finishing, then let us stitch it precisely to your measurements.</p><div className="hero-stats"><span><strong>200+</strong>Fabrics</span><span><strong>4</strong>Collections</span><span><strong>7–14</strong>Day delivery</span><span><strong>4.9★</strong>Rating</span></div><a href="#atelier" className="btn">Begin designing</a></header><section className="atelier-intro"><span className="tag">The Own Creations way</span><h2>From a feeling to a finished piece.</h2><p>Every creation starts with your idea. Explore our edits, choose a silhouette, and make it yours with your measurements and considered finishing details.</p></section><Configurator/></>}
+'use client'
+
+import { useEffect, useRef } from 'react'
+
+export default function Home() {
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+
+  useEffect(() => {
+    // Listen for order messages from the atelier page
+    const handleMessage = async (event: MessageEvent) => {
+      if (event.data?.type === 'OWN_CREATIONS_ORDER_PLACED') {
+        try {
+          await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(event.data.payload)
+          })
+        } catch (e) {
+          console.warn('Backend order sync error:', e)
+        }
+      }
+    }
+
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [])
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh', margin: 0, padding: 0, overflow: 'hidden', zIndex: 10 }}>
+      <iframe
+        ref={iframeRef}
+        src="/atelier.html"
+        style={{
+          width: '100%',
+          height: '100%',
+          border: 'none',
+          display: 'block'
+        }}
+        title="Own Creations — Custom Dress Atelier"
+      />
+    </div>
+  )
+}
